@@ -1,0 +1,149 @@
+<html>
+  <head>
+    <script src="http://127.0.0.1:3042/socket.io/socket.io.js"></script>
+    <script src="https://kaboomjs.com/lib/0.5.1/kaboom.js"></script>
+    <script type="module">
+
+      const MAP_WIDTH = 800; 
+      const MAP_HEIGHT = 600;
+      // initialize kaboom context
+      kaboom({
+        global: true,
+        fullscreen: false,
+          clearColor: [0, 0, 0, 1],
+          width: MAP_WIDTH,
+          height: MAP_HEIGHT,
+        scale: 1,
+      });
+
+
+      scene("main", () => {
+        layers([
+          "bg", 
+          "obj", 
+          "ui", 
+        ], "obj");
+
+        add([
+          rect(1,400),
+          pos(233,100),
+          layer("ui"),
+        ]);  
+
+        add([
+          rect(1,400),
+          pos(366,100),
+          layer("ui"),
+        ]); 
+ 
+        add([
+          rect(400,1),
+          pos(100, 233),
+          layer("ui"),
+        ]); 
+
+        add([
+          rect(400,1),
+          pos(100, 366),
+          layer("ui"),
+        ]); 
+
+        var socket = io('http://127.0.0.1:3042'); 
+        socket.on('connect', function(){
+          socket.emit("addPlayer", {
+            playerName: "bob"
+          });
+        }); 
+
+        socket.on('gameState', function(state){
+          console.log(JSON.stringify(state)); 
+          for (let index = 0; index < state.board.length; index++) {
+            const element = state.board[index];
+            if (element != null){
+              boardSquares[index].textBox.text = element.symbol; 
+            } else
+            {
+              boardSquares[index].textBox.text = ''; 
+            }
+          }
+        }); 
+
+        let boardSquares = [
+          {index: 0, x: 100, y: 100, width:133, height: 133 }, 
+          {index: 1, x: 233, y: 100, width:133, height: 133 }, 
+          {index: 2, x: 366, y: 100, width:133, height: 133 }, 
+          {index: 3, x: 100, y: 233, width:133, height: 133 }, 
+          {index: 4, x: 233, y: 233, width:133, height: 133 }, 
+          {index: 5, x: 366, y: 233, width:133, height: 133 }, 
+          {index: 6, x: 100, y: 366, width:133, height: 133 }, 
+          {index: 7, x: 233, y: 366, width:133, height: 133 }, 
+          {index: 8, x: 366, y: 366, width:133, height: 133 }
+        ];
+        createTextBoxesForGrid(); 
+
+
+        function createTextBoxesForGrid(){
+          boardSquares.forEach((square)=>{
+            let x = square.x + square.width*0.5; 
+            let y= square.y + square.height*0.5; 
+            square.textBox = add([
+              text('', 40), 
+              pos(x, y), 
+              origin('center')
+            ]);
+          })
+        }
+
+
+        mouseRelease(() => {
+          const mpos = mousePos();
+          // find the square we clicked on 
+          for (let index = 0; index < boardSquares.length; index++) {
+            const square = boardSquares[index];
+            if (mpos.x > square.x 
+                && mpos.x < square.x + square.width 
+                && mpos.y > square.y 
+                && mpos.y < square.y + square.height){
+                  socket.emit("action", {
+                    gridIndex: square.index
+                  }); 
+                  break; 
+                } 
+          }
+        });
+
+      }); 
+
+      scene("startGame", ()=>{
+        add([
+          text("What's your name? ",20),
+          pos(MAP_WIDTH / 2, MAP_HEIGHT / 3),
+          origin("center"),
+          layer("ui"),
+        ]);
+
+        let nameField = add([
+          text("",20),
+          pos(MAP_WIDTH / 2, MAP_HEIGHT / 2),
+          origin("center"),
+          layer("ui"),
+        ]);
+
+        charInput((ch) => {
+            nameField.text += ch;
+        });
+
+        keyRelease("enter", ()=>{
+            go("main", {playerName: nameField.text} );
+        })
+
+      });
+
+      start("startGame");
+    </script>
+
+  </head>
+
+
+
+</html>

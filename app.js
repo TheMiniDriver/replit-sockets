@@ -77,7 +77,7 @@ function addPlayer(socketId){
 
 function action(socketId){
   return (data)=> {
-    if (gameState.players.length === 2 && gameState.currentPlayer.id === socketId){
+    if (gameState.result.status === Statuses.PLAYING && gameState.currentPlayer.id === socketId){
       const player = gameState.players.find(p => p.id === socketId); 
       gameState.board[data.gridIndex] = player; 
       gameState.currentPlayer = gameState.players.find(p => p.id !== socketId); 
@@ -89,6 +89,7 @@ function action(socketId){
 
 function rematch(socketId){
   return (data) => {
+    if (gameState.players.findIndex(p=> p.id === socketId) < 0) return; // Don't let observers rematch
     if (gameState.result.status === Statuses.WIN || gameState.result.status === Statuses.DRAW){
       resetGame(); 
       io.emit('gameState', gameState); 

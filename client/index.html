@@ -4,7 +4,7 @@
     <script src="https://kaboomjs.com/lib/0.5.1/kaboom.js"></script>
     <script type="module">
 
-      const MAP_WIDTH = 800; 
+      const MAP_WIDTH = 1000; 
       const MAP_HEIGHT = 600;
       // initialize kaboom context
       kaboom({
@@ -16,14 +16,22 @@
         scale: 1,
       });
 
+      const Statuses = {
+        WAITING: 'waiting', 
+        PLAYING: 'playing', 
+        DRAW: 'draw', 
+        WIN: 'win'
+      }
 
-      scene("main", () => {
+
+      scene("main", (args) => {
         layers([
           "bg", 
           "obj", 
           "ui", 
         ], "obj");
 
+        // Board
         add([
           rect(1,400),
           pos(233,100),
@@ -48,24 +56,74 @@
           layer("ui"),
         ]); 
 
+        // Game Status Elements
+        const playerOneLabel = add([
+          text('', 16),
+          pos(600, 100),
+          layer("ui"),
+        ]);
+
+        const playerTwoLabel = add([
+          text('', 16),
+          pos(600, 150),
+          layer("ui"),
+        ]);
+
+        const statusLabel = add([
+          text('', 16),
+          pos(600, 200),
+          layer("ui"),
+          color(0,1,0)
+        ]); 
+
+
+
         var socket = io('http://127.0.0.1:3042'); 
         socket.on('connect', function(){
           socket.emit("addPlayer", {
-            playerName: "bob"
+            playerName: args.playerName
           });
         }); 
 
         socket.on('gameState', function(state){
-          console.log(JSON.stringify(state)); 
           for (let index = 0; index < state.board.length; index++) {
-            const element = state.board[index];
-            if (element != null){
-              boardSquares[index].textBox.text = element.symbol; 
+            const player = state.board[index];
+            if (player != null){
+              boardSquares[index].textBox.text = player.symbol; 
             } else
             {
               boardSquares[index].textBox.text = ''; 
             }
           }
+
+          statusLabel.text = ''; 
+          switch (state.result.status) {
+            case Statuses.WAITING:
+              statusLabel.text = 'Waiting for players....'; 
+              break;
+            case Statuses.PLAYING:
+              statusLabel.text = state.currentPlayer.playerName + ' to play'; 
+            break;
+            case Statuses.DRAW:
+              statusLabel.text = 'Draw!'; 
+            break;
+            case Statuses.WIN:
+              statusLabel.text = state.result.winner.playerName + ' Wins! \nPress R for rematch'; 
+            break;          
+            default:
+              break;
+          }
+          
+          playerOneLabel.text = ''; 
+          playerTwoLabel.text = ''; 
+          if (state.players.length > 0){
+            playerOneLabel.text = state.players[0].symbol + ': ' + state.players[0].playerName; 
+          }
+
+          if (state.players.length > 1){
+            playerTwoLabel.text = state.players[1].symbol + ': ' + state.players[1].playerName; 
+          }
+
         }); 
 
         let boardSquares = [
@@ -85,7 +143,7 @@
         function createTextBoxesForGrid(){
           boardSquares.forEach((square)=>{
             let x = square.x + square.width*0.5; 
-            let y= square.y + square.height*0.5; 
+            let y = square.y + square.height*0.5; 
             square.textBox = add([
               text('', 40), 
               pos(x, y), 
@@ -109,6 +167,12 @@
                   }); 
                   break; 
                 } 
+          }
+        });
+
+        charInput((ch) => {
+          if (ch === 'r' || ch === 'R'){
+            socket.emit("rematch", null)
           }
         });
 
@@ -141,9 +205,5 @@
 
       start("startGame");
     </script>
-
   </head>
-
-
-
 </html>

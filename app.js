@@ -1,7 +1,6 @@
 
 const http = require('http');
 const server = http.createServer();
-
 const sockets = require('socket.io')
 
 const io = sockets(server,  {
@@ -38,40 +37,40 @@ io.on('connection', function (connection) {
 function disconnect(socketId){
   return (reason) => {
     gameState.players = gameState.players.filter(p => p.id != socketId);
-    resetGame(); 
-    io.emit('gameState', gameState); 
+    if (gameState.players !== 2){
+      resetGame(); 
+      io.emit('gameState', gameState); 
+    }
   }
 }
 
 function addPlayer(socketId){
   return (data)=>{
-
-    const numberOfPlayers  = gameState.players.length; 
+    const numberOfPlayers = gameState.players.length; 
     if (numberOfPlayers >= 2){
-      io.to(socketId).emit('gameFull', {message: 'There are already 2 players in this game. Please try again later'}); 
       return; 
-    } else {
+    } 
       
-      let nextSymbol = 'X'; 
-      if (numberOfPlayers === 1){
-        if (gameState.players[0].symbol === 'X'){
-          nextSymbol = 'O'; 
-        }
+    let nextSymbol = 'X'; 
+    if (numberOfPlayers === 1){
+      if (gameState.players[0].symbol === 'X'){
+        nextSymbol = 'O'; 
       }
-
-      const newPlayer = {
-        playerName: data.playerName, 
-        id: socketId, 
-        symbol: nextSymbol
-      }; 
-
-      gameState.players.push(newPlayer); 
-      if (gameState.players.length == 2){
-        gameState.result.status = Statuses.PLAYING;
-        gameState.currentPlayer = newPlayer; 
-      }
-      io.emit('gameState', gameState); 
     }
+
+    const newPlayer = {
+      playerName: data.playerName, 
+      id: socketId, 
+      symbol: nextSymbol
+    }; 
+
+    gameState.players.push(newPlayer); 
+    if (gameState.players.length == 2){
+      gameState.result.status = Statuses.PLAYING;
+      gameState.currentPlayer = newPlayer; 
+    }
+    io.emit('gameState', gameState); 
+    
   }
 }
 
@@ -79,9 +78,11 @@ function action(socketId){
   return (data)=> {
     if (gameState.result.status === Statuses.PLAYING && gameState.currentPlayer.id === socketId){
       const player = gameState.players.find(p => p.id === socketId); 
-      gameState.board[data.gridIndex] = player; 
-      gameState.currentPlayer = gameState.players.find(p => p.id !== socketId); 
-      checkForEndOfGame();
+      if (gameState.board[data.gridIndex] == null){
+        gameState.board[data.gridIndex] = player; 
+        gameState.currentPlayer = gameState.players.find(p => p !== player); 
+        checkForEndOfGame();
+      }
     }
     io.emit('gameState', gameState); 
   }
@@ -110,7 +111,7 @@ function resetGame(){
   console.log(gameState); 
 }
 
-const winSequences = [
+const winPatterns = [
   [0, 1, 2],
   [3, 4, 5], 
   [6, 7, 8], 
@@ -125,7 +126,7 @@ function checkForEndOfGame(){
 
   // Check for a win
   gameState.players.forEach(player => {
-    winSequences.forEach(seq => {
+    winPatterns.forEach(seq => {
       if (gameState.board[seq[0]] == player
           && gameState.board[seq[1]] == player
           && gameState.board[seq[2]] == player){
